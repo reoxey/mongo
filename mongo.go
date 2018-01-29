@@ -10,61 +10,61 @@ import (
 	"fmt"
 )
 
-var db *mgo.Database
+var c *mgo.Collection
 var dbo *mgo.Session
 
-func MongoDial(d string) *mgo.Session {
+func MongoDial(d,t string) *mgo.Session {
 
 	if dbo == nil {
-		dbo,e := mgo.Dial("localhost")
-		
+		db,e := mgo.Dial("localhost")
+		dbo = db
 		err(e)
-		dbo.SetMode(mgo.Monotonic,true)
-//		defer dbo.Close()
+		//defer db.Close()
 	}
 
-	db = dbo.DB(d)
-	return dbo
-}
+	dbo.SetMode(mgo.Monotonic,true)
 
-func CreateCollection(t string) *mgo.Collection {
-	c := db.C(t)
-	
+	c = dbo.DB(d).C(t)
 	i := mgo.Index{
 		Key: []string{"_id"},
 		Unique: true,
 		DropDups: true,
 		Background: true,
 	}
-	
+
 	e := c.EnsureIndex(i)
 	err(e)
-	
-	return c
+	return dbo
 }
 
-func Insert(c *mgo.Collection, in bson.M){
-	fmt.Println(c)
+func Insert(in bson.M){
 	delete(in, "ID");
 	e := c.Insert(in)
 	err(e)
 }
 
-func FindOne(c *mgo.Collection, find bson.M,sel bson.M) bson.M {
+func FindOne(find bson.M,sel bson.M) bson.M {
 	var r bson.M
 	e := c.Find(find).Select(sel).One(&r)
 	err(e)
 	return r
 }
 
-func FindAll(c *mgo.Collection, find bson.M,sort string) []bson.M {
+func FindLast(find bson.M, sel bson.M, sort string) bson.M {
+	var r bson.M
+	e := c.Find(find).Sort(sort).Select(sel).One(&r)
+	err(e)
+	return r
+}
+
+func FindAll(find bson.M,sort string) []bson.M {
 	var r []bson.M
 	e := c.Find(find).Sort(sort).All(&r)
 	err(e)
 	return r
 }
 
-func Update(c *mgo.Collection, find bson.M,change bson.M,multi bool)  {
+func Update(find bson.M,change bson.M,multi bool)  {
 	var e error
 	if multi {
 		_,e = c.UpdateAll(find, change)
