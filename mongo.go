@@ -1,3 +1,7 @@
+/**
+Mongo CRUD
+reoxey
+**/
 package mongo
 
 import (
@@ -6,54 +10,61 @@ import (
 	"fmt"
 )
 
-var c *mgo.Collection
+var db *mgo.Database
 var dbo *mgo.Session
 
-func MongoDial(d,t string) *mgo.Session {
+func MongoDial(d string) *mgo.Session {
 
 	if dbo == nil {
-		db,e := mgo.Dial("localhost")
-		dbo = db
+		dbo,e := mgo.Dial("localhost")
+		
 		err(e)
-		defer db.Close()
+		dbo.SetMode(mgo.Monotonic,true)
+//		defer dbo.Close()
 	}
 
-	dbo.SetMode(mgo.Monotonic,true)
+	db = dbo.DB(d)
+	return dbo
+}
 
-	c = dbo.DB(d).C(t)
+func CreateCollection(t string) *mgo.Collection {
+	c := db.C(t)
+	
 	i := mgo.Index{
 		Key: []string{"_id"},
 		Unique: true,
 		DropDups: true,
 		Background: true,
 	}
-
+	
 	e := c.EnsureIndex(i)
 	err(e)
-	return dbo
+	
+	return c
 }
 
-func Insert(in bson.M){
+func Insert(c *mgo.Collection, in bson.M){
+	fmt.Println(c)
 	delete(in, "ID");
 	e := c.Insert(in)
 	err(e)
 }
 
-func FindOne(find bson.M,sel bson.M) bson.M {
+func FindOne(c *mgo.Collection, find bson.M,sel bson.M) bson.M {
 	var r bson.M
 	e := c.Find(find).Select(sel).One(&r)
 	err(e)
 	return r
 }
 
-func FindAll(find bson.M,sort string) []bson.M {
+func FindAll(c *mgo.Collection, find bson.M,sort string) []bson.M {
 	var r []bson.M
 	e := c.Find(find).Sort(sort).All(&r)
 	err(e)
 	return r
 }
 
-func Update(find bson.M,change bson.M,multi bool)  {
+func Update(c *mgo.Collection, find bson.M,change bson.M,multi bool)  {
 	var e error
 	if multi {
 		_,e = c.UpdateAll(find, change)
